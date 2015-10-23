@@ -190,7 +190,7 @@ LADSPA_Descriptor * g_psLPFDescriptor = NULL;
 /**
  * _init() is called automatically when the plugin library is first loaded.
  */
-void _init()
+extern "C" void _init()
 {
 
     char ** pcPortNames;
@@ -279,14 +279,14 @@ void _init()
 
 
 /* _fini() is called automatically when the library is unloaded. */
-void _fini()
+extern "C" void _fini()
 {
     deleteDescriptor(g_psLPFDescriptor);
 }
 
 /* Return a descriptor of the requested plugin type. There are two
    plugin types available in this library. */
-const LADSPA_Descriptor * ladspa_descriptor(unsigned long Index)
+extern "C" const LADSPA_Descriptor * ladspa_descriptor(unsigned long Index)
 {
     /* Return the requested descriptor or null if the index is out of range. */
     switch (Index)
