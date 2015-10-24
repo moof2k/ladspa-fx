@@ -9,8 +9,10 @@
 
 enum {
     kPortInCutoff = 0,
-    kPortInAudio,
-    kPortOutAudio
+    kPortInAudio0,
+    kPortInAudio1,
+    kPortOutAudio0,
+    kPortOutAudio1
 };
 
 /* Instance data for the simple filter. We can get away with using
@@ -22,7 +24,9 @@ typedef struct {
     LADSPA_Data m_fSampleRate;
     LADSPA_Data m_fTwoPiOverSampleRate;
 
-    LADSPA_Data m_fLastOutput;
+    LADSPA_Data m_fLastOutput0;
+    LADSPA_Data m_fLastOutput1;
+
     LADSPA_Data m_fLastCutoff;
     LADSPA_Data m_fAmountOfCurrent;
     LADSPA_Data m_fAmountOfLast;
@@ -31,8 +35,10 @@ typedef struct {
      ------ */
 
     LADSPA_Data * m_pfInCutoff;
-    LADSPA_Data * m_pfInAudio;
-    LADSPA_Data * m_pfOutAudio;
+    LADSPA_Data * m_pfInAudio0;
+    LADSPA_Data * m_pfInAudio1;
+    LADSPA_Data * m_pfOutAudio0;
+    LADSPA_Data * m_pfOutAudio1;
 
 } SimpleFilter;
 
@@ -52,7 +58,8 @@ LADSPA_Handle instantiateSimpleFilter(const LADSPA_Descriptor * Descriptor, unsi
     {
         psFilter->m_fSampleRate = (LADSPA_Data) SampleRate;
         psFilter->m_fTwoPiOverSampleRate = (2 * M_PI) / (LADSPA_Data) SampleRate;
-        psFilter->m_fLastOutput = 0;
+        psFilter->m_fLastOutput0 = 0;
+        psFilter->m_fLastOutput1 = 0;
         psFilter->m_fLastCutoff = 0;
         psFilter->m_fAmountOfCurrent = 0;
         psFilter->m_fAmountOfLast = 0;
@@ -69,8 +76,9 @@ LADSPA_Handle instantiateSimpleFilter(const LADSPA_Descriptor * Descriptor, unsi
 void activateSimpleFilter(LADSPA_Handle Instance)
 {
     SimpleFilter * psSimpleFilter;
-    psSimpleFilter = (SimpleFilter *)Instance;
-    psSimpleFilter->m_fLastOutput = 0;
+    psSimpleFilter = (SimpleFilter *) Instance;
+    psSimpleFilter->m_fLastOutput0 = 0;
+    psSimpleFilter->m_fLastOutput1 = 0;
 }
 
 /*****************************************************************************/
@@ -89,11 +97,17 @@ void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSP
         case kPortInCutoff:
             psFilter->m_pfInCutoff = DataLocation;
             break;
-        case kPortInAudio:
-            psFilter->m_pfInAudio = DataLocation;
+        case kPortInAudio0:
+            psFilter->m_pfInAudio0 = DataLocation;
             break;
-        case kPortOutAudio:
-            psFilter->m_pfOutAudio = DataLocation;
+        case kPortInAudio1:
+            psFilter->m_pfInAudio1 = DataLocation;
+            break;
+        case kPortOutAudio0:
+            psFilter->m_pfOutAudio0 = DataLocation;
+            break;
+        case kPortOutAudio1:
+            psFilter->m_pfOutAudio1 = DataLocation;
             break;
     }
 }
@@ -101,19 +115,19 @@ void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSP
 /* Run the LPF algorithm for a block of SampleCount samples. */
 void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
 {
-    LADSPA_Data * pfInput;
-    LADSPA_Data * pfOutput;
     LADSPA_Data fAmountOfCurrent;
     LADSPA_Data fAmountOfLast;
     LADSPA_Data fComp;
-    LADSPA_Data fLastOutput;
     SimpleFilter * psFilter;
     unsigned long lSampleIndex;
 
-    psFilter = (SimpleFilter *)Instance;
+    psFilter = (SimpleFilter *) Instance;
 
-    pfInput = psFilter->m_pfInAudio;
-    pfOutput = psFilter->m_pfOutAudio;
+    LADSPA_Data *pfInput0 = psFilter->m_pfInAudio0;
+    LADSPA_Data *pfInput1 = psFilter->m_pfInAudio1;
+
+    LADSPA_Data *pfOutput0 = psFilter->m_pfOutAudio0;
+    LADSPA_Data *pfOutput1 = psFilter->m_pfOutAudio1;
 
     if (*psFilter->m_pfInCutoff != psFilter->m_fLastCutoff)
     {
@@ -140,16 +154,21 @@ void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
 
     fAmountOfCurrent = psFilter->m_fAmountOfCurrent;
     fAmountOfLast = psFilter->m_fAmountOfLast;
-    fLastOutput = psFilter->m_fLastOutput;
+    LADSPA_Data fLastOutput0 = psFilter->m_fLastOutput0;
+    LADSPA_Data fLastOutput1 = psFilter->m_fLastOutput1;
 
     for (lSampleIndex = 0; lSampleIndex < SampleCount; lSampleIndex++)
     {
-        *(pfOutput++)
-            = fLastOutput
-            = (fAmountOfCurrent * *(pfInput++) + fAmountOfLast * fLastOutput);
+        *(pfOutput0++)
+            = fLastOutput0
+            = (fAmountOfCurrent * *(pfInput0++) + fAmountOfLast * fLastOutput0);
+        *(pfOutput1++)
+            = fLastOutput1
+            = (fAmountOfCurrent * *(pfInput1++) + fAmountOfLast * fLastOutput1) * 0.25;
     }
 
-    psFilter->m_fLastOutput = fLastOutput;
+    psFilter->m_fLastOutput0 = fLastOutput0;
+    psFilter->m_fLastOutput1 = fLastOutput1;
 }
 
 /* Throw away a filter instance. Normally separate functions
@@ -207,69 +226,52 @@ extern "C" void _init()
           = strdup("Richard Furse (LADSPA example plugins)");
         g_psLPFDescriptor->Copyright
           = strdup("None");
-        g_psLPFDescriptor->PortCount
-          = 3;
-        piPortDescriptors
-          = (LADSPA_PortDescriptor *) calloc(3, sizeof(LADSPA_PortDescriptor));
-        g_psLPFDescriptor->PortDescriptors
-          = (const LADSPA_PortDescriptor *)piPortDescriptors;
-        piPortDescriptors[kPortInCutoff]
-          = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
-        piPortDescriptors[kPortInAudio]
-          = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
-        piPortDescriptors[kPortOutAudio]
-          = LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO;
 
-        pcPortNames
-          = (char **)calloc(3, sizeof(char *));
-        g_psLPFDescriptor->PortNames 
-          = (const char **)pcPortNames;
-        pcPortNames[kPortInCutoff]
-          = strdup("Cutoff Frequency (Hz)");
-        pcPortNames[kPortInAudio]
-          = strdup("Input");
-        pcPortNames[kPortOutAudio]
-          = strdup("Output");
+        g_psLPFDescriptor->PortCount = 5;
 
-        psPortRangeHints = ((LADSPA_PortRangeHint *)
-                calloc(3, sizeof(LADSPA_PortRangeHint)));
-        g_psLPFDescriptor->PortRangeHints
-          = (const LADSPA_PortRangeHint *)psPortRangeHints;
+        piPortDescriptors = (LADSPA_PortDescriptor *) calloc(5, sizeof(LADSPA_PortDescriptor));
+        g_psLPFDescriptor->PortDescriptors = (const LADSPA_PortDescriptor *) piPortDescriptors;
+        piPortDescriptors[kPortInCutoff] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
+        piPortDescriptors[kPortInAudio0] = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
+        piPortDescriptors[kPortInAudio1] = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
+        piPortDescriptors[kPortOutAudio0] = LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO;
+        piPortDescriptors[kPortOutAudio1] = LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO;
+
+        pcPortNames = (char **) calloc(5, sizeof(char *));
+        g_psLPFDescriptor->PortNames = (const char **) pcPortNames;
+        pcPortNames[kPortInCutoff] = strdup("Cutoff Frequency (Hz)");
+        pcPortNames[kPortInAudio0] = strdup("Input (Left)");
+        pcPortNames[kPortInAudio1] = strdup("Input (Right)");
+        pcPortNames[kPortOutAudio0] = strdup("Output (Left)");
+        pcPortNames[kPortOutAudio1] = strdup("Output (Right)");
+
+        psPortRangeHints = ((LADSPA_PortRangeHint *) calloc(5, sizeof(LADSPA_PortRangeHint)));
+        g_psLPFDescriptor->PortRangeHints = (const LADSPA_PortRangeHint *) psPortRangeHints;
 
         psPortRangeHints[kPortInCutoff].HintDescriptor
-          = (LADSPA_HINT_BOUNDED_BELOW 
-         | LADSPA_HINT_BOUNDED_ABOVE
-         | LADSPA_HINT_SAMPLE_RATE
-         | LADSPA_HINT_LOGARITHMIC
-         | LADSPA_HINT_DEFAULT_440);
-        psPortRangeHints[kPortInCutoff].LowerBound 
-          = 0;
-        psPortRangeHints[kPortInCutoff].UpperBound
-          = 0.125; /* 1/8 the sample rate */
-        psPortRangeHints[kPortInAudio].HintDescriptor
-          = 0;
-        psPortRangeHints[kPortOutAudio].HintDescriptor
-          = 0;
+            = (LADSPA_HINT_BOUNDED_BELOW 
+            | LADSPA_HINT_BOUNDED_ABOVE
+            | LADSPA_HINT_SAMPLE_RATE
+            | LADSPA_HINT_LOGARITHMIC
+            | LADSPA_HINT_DEFAULT_440);
+        psPortRangeHints[kPortInCutoff].LowerBound = 0;
+        psPortRangeHints[kPortInCutoff].UpperBound = 0.125; /* 1/8 the sample rate */
 
-        g_psLPFDescriptor->instantiate 
-          = instantiateSimpleFilter;
-        g_psLPFDescriptor->connect_port 
-          = connectPortToSimpleFilter;
-        g_psLPFDescriptor->activate
-          = activateSimpleFilter;
-        g_psLPFDescriptor->run
-          = runSimpleLowPassFilter;
+        psPortRangeHints[kPortInAudio0].HintDescriptor = 0;
+        psPortRangeHints[kPortInAudio1].HintDescriptor = 0;
+        psPortRangeHints[kPortOutAudio0].HintDescriptor = 0;
+        psPortRangeHints[kPortOutAudio1].HintDescriptor = 0;
 
-        g_psLPFDescriptor->run_adding
-          = NULL;
-        g_psLPFDescriptor->set_run_adding_gain
-          = NULL;
-        g_psLPFDescriptor->deactivate
-          = NULL;
-        g_psLPFDescriptor->cleanup
-          = cleanupSimpleFilter;
+        g_psLPFDescriptor->instantiate = instantiateSimpleFilter;
+        g_psLPFDescriptor->connect_port = connectPortToSimpleFilter;
+        g_psLPFDescriptor->activate = activateSimpleFilter;
+        g_psLPFDescriptor->run = runSimpleLowPassFilter;
+
+        g_psLPFDescriptor->run_adding = NULL;
+        g_psLPFDescriptor->set_run_adding_gain = NULL;
+        g_psLPFDescriptor->deactivate = NULL;
+        g_psLPFDescriptor->cleanup = cleanupSimpleFilter;
     }
-
 }
 
 
