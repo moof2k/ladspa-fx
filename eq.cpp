@@ -30,9 +30,9 @@ typedef struct {
     /* Ports:
      ------ */
 
-    LADSPA_Data * m_pfCutoff;
-    LADSPA_Data * m_pfInput;
-    LADSPA_Data * m_pfOutput;
+    LADSPA_Data * m_pfInCutoff;
+    LADSPA_Data * m_pfInAudio;
+    LADSPA_Data * m_pfOutAudio;
 
 } SimpleFilter;
 
@@ -50,8 +50,8 @@ LADSPA_Handle instantiateSimpleFilter(const LADSPA_Descriptor * Descriptor, unsi
 
     if (psFilter)
     {
-        psFilter->m_fSampleRate = (LADSPA_Data)SampleRate;
-        psFilter->m_fTwoPiOverSampleRate = (2 * M_PI) / (LADSPA_Data)SampleRate;
+        psFilter->m_fSampleRate = (LADSPA_Data) SampleRate;
+        psFilter->m_fTwoPiOverSampleRate = (2 * M_PI) / (LADSPA_Data) SampleRate;
         psFilter->m_fLastOutput = 0;
         psFilter->m_fLastCutoff = 0;
         psFilter->m_fAmountOfCurrent = 0;
@@ -87,13 +87,13 @@ void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSP
     switch (Port)
     {
         case kPortInCutoff:
-            psFilter->m_pfCutoff = DataLocation;
+            psFilter->m_pfInCutoff = DataLocation;
             break;
         case kPortInAudio:
-            psFilter->m_pfInput = DataLocation;
+            psFilter->m_pfInAudio = DataLocation;
             break;
         case kPortOutAudio:
-            psFilter->m_pfOutput = DataLocation;
+            psFilter->m_pfOutAudio = DataLocation;
             break;
     }
 }
@@ -112,12 +112,12 @@ void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
 
     psFilter = (SimpleFilter *)Instance;
 
-    pfInput = psFilter->m_pfInput;
-    pfOutput = psFilter->m_pfOutput;
+    pfInput = psFilter->m_pfInAudio;
+    pfOutput = psFilter->m_pfOutAudio;
 
-    if (*psFilter->m_pfCutoff != psFilter->m_fLastCutoff)
+    if (*psFilter->m_pfInCutoff != psFilter->m_fLastCutoff)
     {
-        psFilter->m_fLastCutoff = *psFilter->m_pfCutoff;
+        psFilter->m_fLastCutoff = *psFilter->m_pfInCutoff;
         if (psFilter->m_fLastCutoff <= 0)
         {
             /* Reject everything. */
