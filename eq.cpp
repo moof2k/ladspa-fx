@@ -6,13 +6,12 @@
 
 #include "ladspa.h"
 
-/*****************************************************************************/
 
-#define SF_CUTOFF  0
-#define SF_INPUT   1
-#define SF_OUTPUT  2
-
-/*****************************************************************************/
+enum {
+    kPortInCutoff = 0,
+    kPortInAudio,
+    kPortOutAudio
+};
 
 /* Instance data for the simple filter. We can get away with using
    this structure for both low- and high-pass filters because the data
@@ -79,30 +78,25 @@ void activateSimpleFilter(LADSPA_Handle Instance)
 /* Connect a port to a data location. Normally separate functions
    would have to be written for the different plugin types, however we
    can get away with a single function in this case. */
-void connectPortToSimpleFilter(LADSPA_Handle Instance,
-              unsigned long Port,
-              LADSPA_Data * DataLocation)
-    {
-
+void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSPA_Data * DataLocation)
+{
     SimpleFilter * psFilter;
 
     psFilter = (SimpleFilter *)Instance;
 
     switch (Port)
     {
-        case SF_CUTOFF:
-        psFilter->m_pfCutoff = DataLocation;
-        break;
-    case SF_INPUT:
-        psFilter->m_pfInput = DataLocation;
-        break;
-    case SF_OUTPUT:
-        psFilter->m_pfOutput = DataLocation;
-        break;
+        case kPortInCutoff:
+            psFilter->m_pfCutoff = DataLocation;
+            break;
+        case kPortInAudio:
+            psFilter->m_pfInput = DataLocation;
+            break;
+        case kPortOutAudio:
+            psFilter->m_pfOutput = DataLocation;
+            break;
     }
 }
-
-/*****************************************************************************/
 
 /* Run the LPF algorithm for a block of SampleCount samples. */
 void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
@@ -219,41 +213,42 @@ extern "C" void _init()
           = (LADSPA_PortDescriptor *) calloc(3, sizeof(LADSPA_PortDescriptor));
         g_psLPFDescriptor->PortDescriptors
           = (const LADSPA_PortDescriptor *)piPortDescriptors;
-        piPortDescriptors[SF_CUTOFF]
+        piPortDescriptors[kPortInCutoff]
           = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
-        piPortDescriptors[SF_INPUT]
+        piPortDescriptors[kPortInAudio]
           = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
-        piPortDescriptors[SF_OUTPUT]
+        piPortDescriptors[kPortOutAudio]
           = LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO;
 
         pcPortNames
           = (char **)calloc(3, sizeof(char *));
         g_psLPFDescriptor->PortNames 
           = (const char **)pcPortNames;
-        pcPortNames[SF_CUTOFF]
+        pcPortNames[kPortInCutoff]
           = strdup("Cutoff Frequency (Hz)");
-        pcPortNames[SF_INPUT]
+        pcPortNames[kPortInAudio]
           = strdup("Input");
-        pcPortNames[SF_OUTPUT]
+        pcPortNames[kPortOutAudio]
           = strdup("Output");
 
         psPortRangeHints = ((LADSPA_PortRangeHint *)
                 calloc(3, sizeof(LADSPA_PortRangeHint)));
         g_psLPFDescriptor->PortRangeHints
           = (const LADSPA_PortRangeHint *)psPortRangeHints;
-        psPortRangeHints[SF_CUTOFF].HintDescriptor
+
+        psPortRangeHints[kPortInCutoff].HintDescriptor
           = (LADSPA_HINT_BOUNDED_BELOW 
          | LADSPA_HINT_BOUNDED_ABOVE
          | LADSPA_HINT_SAMPLE_RATE
          | LADSPA_HINT_LOGARITHMIC
          | LADSPA_HINT_DEFAULT_440);
-        psPortRangeHints[SF_CUTOFF].LowerBound 
+        psPortRangeHints[kPortInCutoff].LowerBound 
           = 0;
-        psPortRangeHints[SF_CUTOFF].UpperBound
-          = 0.5; /* Nyquist frequency (half the sample rate) */
-        psPortRangeHints[SF_INPUT].HintDescriptor
+        psPortRangeHints[kPortInCutoff].UpperBound
+          = 0.125; /* 1/8 the sample rate */
+        psPortRangeHints[kPortInAudio].HintDescriptor
           = 0;
-        psPortRangeHints[SF_OUTPUT].HintDescriptor
+        psPortRangeHints[kPortOutAudio].HintDescriptor
           = 0;
 
         g_psLPFDescriptor->instantiate 
@@ -278,14 +273,18 @@ extern "C" void _init()
 }
 
 
-/* _fini() is called automatically when the library is unloaded. */
+/**
+ * fini() is called automatically when the library is unloaded.
+ */
 extern "C" void _fini()
 {
     deleteDescriptor(g_psLPFDescriptor);
 }
 
-/* Return a descriptor of the requested plugin type. There are two
-   plugin types available in this library. */
+/**
+ * Return a descriptor of the requested plugin type. There are two
+ * plugin types available in this library.
+ */
 extern "C" const LADSPA_Descriptor * ladspa_descriptor(unsigned long Index)
 {
     /* Return the requested descriptor or null if the index is out of range. */
