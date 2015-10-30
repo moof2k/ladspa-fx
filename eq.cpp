@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "LPF.h"
+
 #include "ladspa.h"
 
 
@@ -15,24 +17,15 @@ enum {
     kPortOutAudio1
 };
 
-/* Instance data for the simple filter. We can get away with using
-   this structure for both low- and high-pass filters because the data
-   stored is the same. Note that the actual run() calls differ
-   however. */
-typedef struct {
+class LPFEffectInstance
+{
+public:
+    LPFEffectInstance(unsigned long sample_rate)
+    : m_effect(sample_rate)
+    {
+    }
 
-    LADSPA_Data m_fSampleRate;
-    LADSPA_Data m_fTwoPiOverSampleRate;
-
-    LADSPA_Data m_fLastOutput0;
-    LADSPA_Data m_fLastOutput1;
-
-    LADSPA_Data m_fLastCutoff;
-    LADSPA_Data m_fAmountOfCurrent;
-    LADSPA_Data m_fAmountOfLast;
-
-    /* Ports:
-     ------ */
+    LPF m_effect;
 
     LADSPA_Data * m_pfInCutoff;
     LADSPA_Data * m_pfInAudio0;
@@ -40,7 +33,7 @@ typedef struct {
     LADSPA_Data * m_pfOutAudio0;
     LADSPA_Data * m_pfOutAudio1;
 
-} SimpleFilter;
+};
 
 /*****************************************************************************/
 
@@ -50,20 +43,7 @@ typedef struct {
    be required for each plugin type. */
 LADSPA_Handle instantiateSimpleFilter(const LADSPA_Descriptor * Descriptor, unsigned long SampleRate)
 {
-    SimpleFilter * psFilter;
-
-    psFilter = (SimpleFilter *)malloc(sizeof(SimpleFilter));
-
-    if (psFilter)
-    {
-        psFilter->m_fSampleRate = (LADSPA_Data) SampleRate;
-        psFilter->m_fTwoPiOverSampleRate = (2 * M_PI) / (LADSPA_Data) SampleRate;
-        psFilter->m_fLastOutput0 = 0;
-        psFilter->m_fLastOutput1 = 0;
-        psFilter->m_fLastCutoff = 0;
-        psFilter->m_fAmountOfCurrent = 0;
-        psFilter->m_fAmountOfLast = 0;
-    }
+    LPFEffectInstance *psFilter = new LPFEffectInstance(SampleRate);
 
     return psFilter;
 }
@@ -75,10 +55,8 @@ LADSPA_Handle instantiateSimpleFilter(const LADSPA_Descriptor * Descriptor, unsi
    however we can get away with a single function in this case. */
 void activateSimpleFilter(LADSPA_Handle Instance)
 {
-    SimpleFilter * psSimpleFilter;
-    psSimpleFilter = (SimpleFilter *) Instance;
-    psSimpleFilter->m_fLastOutput0 = 0;
-    psSimpleFilter->m_fLastOutput1 = 0;
+    LPFEffectInstance *psSimpleFilter = (LPFEffectInstance *) Instance;
+    psSimpleFilter->m_effect.activate();
 }
 
 /*****************************************************************************/
@@ -88,9 +66,7 @@ void activateSimpleFilter(LADSPA_Handle Instance)
    can get away with a single function in this case. */
 void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSPA_Data * DataLocation)
 {
-    SimpleFilter * psFilter;
-
-    psFilter = (SimpleFilter *)Instance;
+    LPFEffectInstance *psFilter = (LPFEffectInstance *) Instance;
 
     switch (Port)
     {
@@ -115,60 +91,22 @@ void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSP
 /* Run the LPF algorithm for a block of SampleCount samples. */
 void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
 {
-    LADSPA_Data fAmountOfCurrent;
-    LADSPA_Data fAmountOfLast;
-    LADSPA_Data fComp;
-    SimpleFilter * psFilter;
-    unsigned long lSampleIndex;
+    LPFEffectInstance *psFilter = (LPFEffectInstance *) Instance;
 
-    psFilter = (SimpleFilter *) Instance;
+    float *audio_in[2] = {
+        psFilter->m_pfInAudio0,
+        psFilter->m_pfInAudio1
+    };
 
-    LADSPA_Data *pfInput0 = psFilter->m_pfInAudio0;
-    LADSPA_Data *pfInput1 = psFilter->m_pfInAudio1;
+    float *audio_out[2] = {
+        psFilter->m_pfOutAudio0,
+        psFilter->m_pfOutAudio1
+    };
 
-    LADSPA_Data *pfOutput0 = psFilter->m_pfOutAudio0;
-    LADSPA_Data *pfOutput1 = psFilter->m_pfOutAudio1;
+    psFilter->m_effect.set_cutoff(*psFilter->m_pfInCutoff);
 
-    if (*psFilter->m_pfInCutoff != psFilter->m_fLastCutoff)
-    {
-        psFilter->m_fLastCutoff = *psFilter->m_pfInCutoff;
-        if (psFilter->m_fLastCutoff <= 0)
-        {
-            /* Reject everything. */
-            psFilter->m_fAmountOfCurrent = psFilter->m_fAmountOfLast = 0;
-        }
-        else if (psFilter->m_fLastCutoff > psFilter->m_fSampleRate * 0.5)
-        {
-            /* Above Nyquist frequency. Let everything through. */
-            psFilter->m_fAmountOfCurrent = 1;
-            psFilter->m_fAmountOfLast = 0;
-        }
-        else
-        {
-            psFilter->m_fAmountOfLast = 0;
-            fComp = 2 - cos(psFilter->m_fTwoPiOverSampleRate * psFilter->m_fLastCutoff);
-            psFilter->m_fAmountOfLast = fComp - (LADSPA_Data) sqrt(fComp * fComp - 1);
-            psFilter->m_fAmountOfCurrent = 1 - psFilter->m_fAmountOfLast;
-        }
-    }
+    psFilter->m_effect.run(audio_in, audio_out, SampleCount, 2);
 
-    fAmountOfCurrent = psFilter->m_fAmountOfCurrent;
-    fAmountOfLast = psFilter->m_fAmountOfLast;
-    LADSPA_Data fLastOutput0 = psFilter->m_fLastOutput0;
-    LADSPA_Data fLastOutput1 = psFilter->m_fLastOutput1;
-
-    for (lSampleIndex = 0; lSampleIndex < SampleCount; lSampleIndex++)
-    {
-        *(pfOutput0++)
-            = fLastOutput0
-            = (fAmountOfCurrent * *(pfInput0++) + fAmountOfLast * fLastOutput0);
-        *(pfOutput1++)
-            = fLastOutput1
-            = (fAmountOfCurrent * *(pfInput1++) + fAmountOfLast * fLastOutput1) * 0.25;
-    }
-
-    psFilter->m_fLastOutput0 = fLastOutput0;
-    psFilter->m_fLastOutput1 = fLastOutput1;
 }
 
 /* Throw away a filter instance. Normally separate functions
