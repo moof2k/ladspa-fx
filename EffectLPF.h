@@ -5,10 +5,10 @@
 #include "Effect.h"
 
 
-class LPF : public Effect
+class EffectLPF : public Effect
 {
 public:
-    LPF(unsigned long sample_rate)
+    EffectLPF(unsigned long sample_rate)
     : m_sample_rate(sample_rate)
     , m_2pi_over_sample_rate((2 * M_PI) / (float) sample_rate)
     , m_last_output0(0)
@@ -19,7 +19,7 @@ public:
     {
     }
 
-    virtual ~LPF()
+    virtual ~EffectLPF()
     {
     }
 
@@ -42,13 +42,13 @@ private:
     float m_amount_of_last;
 };
 
-void LPF::activate()
+void EffectLPF::activate()
 {
     m_last_output0 = 0;
     m_last_output1 = 0;
 }
 
-void LPF::set_cutoff(float cutoff)
+void EffectLPF::set_cutoff(float cutoff)
 {
     if (cutoff != m_last_cutoff)
     {
@@ -75,7 +75,7 @@ void LPF::set_cutoff(float cutoff)
     }
 }
 
-void LPF::run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels)
+void EffectLPF::run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels)
 {
     for (unsigned long lSampleIndex = 0; lSampleIndex < samples; lSampleIndex++)
     {

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "LPF.h"
+#include "EffectLPF.h"
 
 #include "ladspa.h"
 
@@ -25,7 +25,7 @@ public:
     {
     }
 
-    LPF m_effect;
+    EffectLPF m_effect;
 
     LADSPA_Data * m_pfInCutoff;
     LADSPA_Data * m_pfInAudio0;
