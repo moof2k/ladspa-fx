@@ -1,3 +1,9 @@
+/**
+ * lpf.cpp
+ *
+ * Low Pass Filter adapted from the LADSPA SDK examples by Richard W.E. Furse.
+ * Converted to 2-channel stereo and C++. Free software. No warranty.
+ */
 
 #include <math.h>
 #include <stdio.h>
@@ -35,63 +41,55 @@ public:
 
 };
 
-/*****************************************************************************/
 
-/* Construct a new plugin instance. In this case, as the SimpleFilter
-   structure can be used for low- or high-pass filters we can get away
-   with only only writing one of these functions. Normally one would
-   be required for each plugin type. */
-LADSPA_Handle instantiateSimpleFilter(const LADSPA_Descriptor * Descriptor, unsigned long SampleRate)
+LADSPA_Handle instantiate_filter(const LADSPA_Descriptor * descriptor, unsigned long sample_rate)
 {
-    LPFEffectInstance *psFilter = new LPFEffectInstance(SampleRate);
+    LPFEffectInstance *psFilter = new LPFEffectInstance(sample_rate);
 
     return psFilter;
 }
 
-/*****************************************************************************/
 
-/* Initialise and activate a plugin instance. Normally separate
-   functions would have to be written for the different plugin types,
-   however we can get away with a single function in this case. */
-void activateSimpleFilter(LADSPA_Handle Instance)
+void activate_filter(LADSPA_Handle instance)
 {
-    LPFEffectInstance *psSimpleFilter = (LPFEffectInstance *) Instance;
+    LPFEffectInstance *psSimpleFilter = (LPFEffectInstance *) instance;
     psSimpleFilter->m_effect.activate();
 }
 
-/*****************************************************************************/
 
-/* Connect a port to a data location. Normally separate functions
-   would have to be written for the different plugin types, however we
-   can get away with a single function in this case. */
-void connectPortToSimpleFilter(LADSPA_Handle Instance, unsigned long Port, LADSPA_Data * DataLocation)
+/**
+ * Connect a port to a data location.
+ */
+void connect_port(LADSPA_Handle instance, unsigned long port, LADSPA_Data * data_location)
 {
-    LPFEffectInstance *psFilter = (LPFEffectInstance *) Instance;
+    LPFEffectInstance *psFilter = (LPFEffectInstance *) instance;
 
-    switch (Port)
+    switch (port)
     {
         case kPortInCutoff:
-            psFilter->m_pfInCutoff = DataLocation;
+            psFilter->m_pfInCutoff = data_location;
             break;
         case kPortInAudio0:
-            psFilter->m_pfInAudio0 = DataLocation;
+            psFilter->m_pfInAudio0 = data_location;
             break;
         case kPortInAudio1:
-            psFilter->m_pfInAudio1 = DataLocation;
+            psFilter->m_pfInAudio1 = data_location;
             break;
         case kPortOutAudio0:
-            psFilter->m_pfOutAudio0 = DataLocation;
+            psFilter->m_pfOutAudio0 = data_location;
             break;
         case kPortOutAudio1:
-            psFilter->m_pfOutAudio1 = DataLocation;
+            psFilter->m_pfOutAudio1 = data_location;
             break;
     }
 }
 
-/* Run the LPF algorithm for a block of SampleCount samples. */
-void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
+/**
+ * Run the effect for a block of sample_count samples.
+ */
+void run_filter(LADSPA_Handle instance, unsigned long sample_count)
 {
-    LPFEffectInstance *psFilter = (LPFEffectInstance *) Instance;
+    LPFEffectInstance *psFilter = (LPFEffectInstance *) instance;
 
     float *audio_in[2] = {
         psFilter->m_pfInAudio0,
@@ -105,31 +103,33 @@ void runSimpleLowPassFilter(LADSPA_Handle Instance, unsigned long SampleCount)
 
     psFilter->m_effect.set_cutoff(*psFilter->m_pfInCutoff);
 
-    psFilter->m_effect.run(audio_in, audio_out, SampleCount, 2);
+    psFilter->m_effect.run(audio_in, audio_out, sample_count, 2);
 
 }
 
-/* Throw away a filter instance. Normally separate functions
-   would have to be written for the different plugin types, however we
-   can get away with a single function in this case. */
-void cleanupSimpleFilter(LADSPA_Handle Instance)
+/**
+ * Throw away a filter instance.
+ */
+void cleanup_filter(LADSPA_Handle instance)
 {
-    free(Instance);
+    LPFEffectInstance *psSimpleFilter = (LPFEffectInstance *) instance;
+    delete psSimpleFilter;
 }
 
 
-void deleteDescriptor(LADSPA_Descriptor * psDescriptor)
+void delete_descriptor(LADSPA_Descriptor *psDescriptor)
 {
-    unsigned long lIndex;
     if (psDescriptor)
     {
         free((char *)psDescriptor->Label);
         free((char *)psDescriptor->Name);
         free((char *)psDescriptor->Maker);
         free((char *)psDescriptor->Copyright);
-        free((LADSPA_PortDescriptor *)psDescriptor->PortDescriptors);
-        for (lIndex = 0; lIndex < psDescriptor->PortCount; lIndex++)
-            free((char *)(psDescriptor->PortNames[lIndex]));
+        free((LADSPA_PortDescriptor *) psDescriptor->PortDescriptors);
+        for (unsigned long i = 0; i < psDescriptor->PortCount; i++)
+        {
+            free((char *)(psDescriptor->PortNames[i]));
+        }
         free((char **)psDescriptor->PortNames);
         free((LADSPA_PortRangeHint *)psDescriptor->PortRangeHints);
         free(psDescriptor);
@@ -159,9 +159,9 @@ extern "C" void _init()
         g_psLPFDescriptor->Properties
           = LADSPA_PROPERTY_HARD_RT_CAPABLE;
         g_psLPFDescriptor->Name 
-          = strdup("Simple Low Pass Filter");
+          = strdup("Low Pass Filter");
         g_psLPFDescriptor->Maker
-          = strdup("Richard Furse (LADSPA example plugins)");
+          = strdup("");
         g_psLPFDescriptor->Copyright
           = strdup("None");
 
@@ -200,15 +200,15 @@ extern "C" void _init()
         psPortRangeHints[kPortOutAudio0].HintDescriptor = 0;
         psPortRangeHints[kPortOutAudio1].HintDescriptor = 0;
 
-        g_psLPFDescriptor->instantiate = instantiateSimpleFilter;
-        g_psLPFDescriptor->connect_port = connectPortToSimpleFilter;
-        g_psLPFDescriptor->activate = activateSimpleFilter;
-        g_psLPFDescriptor->run = runSimpleLowPassFilter;
+        g_psLPFDescriptor->instantiate = instantiate_filter;
+        g_psLPFDescriptor->connect_port = connect_port;
+        g_psLPFDescriptor->activate = activate_filter;
+        g_psLPFDescriptor->run = run_filter;
 
         g_psLPFDescriptor->run_adding = NULL;
         g_psLPFDescriptor->set_run_adding_gain = NULL;
         g_psLPFDescriptor->deactivate = NULL;
-        g_psLPFDescriptor->cleanup = cleanupSimpleFilter;
+        g_psLPFDescriptor->cleanup = cleanup_filter;
     }
 }
 
@@ -218,7 +218,7 @@ extern "C" void _init()
  */
 extern "C" void _fini()
 {
-    deleteDescriptor(g_psLPFDescriptor);
+    delete_descriptor(g_psLPFDescriptor);
 }
 
 /**
