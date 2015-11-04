@@ -2,7 +2,7 @@
 CC=g++ -I. -Wall -Werror -fPIC -MMD -g
 
 PLUGINS=plugins/lpf.so plugins/biquad.so plugins/biquad_cascade.so
-TESTS=lpf_test biquad_test
+TESTS=lpf_test biquad_test biquad_cascade_test
 
 %.o: %.cpp
 	cppcheck $<

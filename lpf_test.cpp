@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 
     for (unsigned long i = 0; i < kNumSamples; i++)
     {
-        printf("%f %f %f %f\n", audio_in[0][i], audio_in[1][i], audio_out[0][i], audio_out[1][i]);
+        printf("%.9f %.9f %.9f %.9f\n", audio_in[0][i], audio_in[1][i], audio_out[0][i], audio_out[1][i]);
     }
 
     return 0;
