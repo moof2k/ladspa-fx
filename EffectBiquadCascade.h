@@ -29,7 +29,7 @@ public:
     float m_q;
 };
 
-const int kNumBiquads = 1;
+const int kNumBiquads = 2;
 
 class EffectBiquadCascade : public Effect
 {
@@ -46,8 +46,8 @@ public:
 
     void activate();
 
-    void set_freq(float freq);
-    void set_q(float q);
+    void set_freq(int biquad, float freq);
+    void set_q(int biquad, float q);
 
     void run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels);
 
@@ -58,8 +58,11 @@ private:
     float m_sample_rate;
     float m_2pi_over_sample_rate;
 
+    float m_x0_0[kNumBiquads + 1];
     float m_x0_1[kNumBiquads + 1];
     float m_x0_2[kNumBiquads + 1];
+
+    float m_x1_0[kNumBiquads + 1];
     float m_x1_1[kNumBiquads + 1];
     float m_x1_2[kNumBiquads + 1];
 
@@ -70,73 +73,90 @@ void EffectBiquadCascade::activate()
 {
     for (int i = 0; i < kNumBiquads + 1; i++)
     {
+        m_x0_0[i] = 0.0f;
         m_x0_1[i] = 0.0f;
         m_x0_2[i] = 0.0f;
+        m_x1_0[i] = 0.0f;
         m_x1_1[i] = 0.0f;
         m_x1_2[i] = 0.0f;
     }
 }
 
-void EffectBiquadCascade::set_freq(float freq)
+void EffectBiquadCascade::set_freq(int biquad, float freq)
 {
-    if (freq != m_coeffs[0].m_freq)
+    if (biquad < 0 || biquad >= kNumBiquads)
+        return;
+
+    if (freq < 0.0f)
+        freq = 0.0f;
+
+    if (freq != m_coeffs[biquad].m_freq)
     {
-        m_coeffs[0].m_freq = freq;
+        m_coeffs[biquad].m_freq = freq;
         update_parameters();
     }
 }
 
-void EffectBiquadCascade::set_q(float q)
+void EffectBiquadCascade::set_q(int biquad, float q)
 {
-    if (q != m_coeffs[0].m_q)
+    if (biquad < 0 || biquad >= kNumBiquads)
+        return;
+
+    if (q < 0.0f)
+        q = 0.0f;
+
+    if (q != m_coeffs[biquad].m_q)
     {
-        m_coeffs[0].m_q = q;
+        m_coeffs[biquad].m_q = q;
         update_parameters();
     }
 }
 
 void EffectBiquadCascade::update_parameters()
 {
-    if (m_coeffs[0].m_freq <= 0)
+    for (int b = 0; b < kNumBiquads; b++)
     {
-        /* Reject everything. */
-        m_coeffs[0].m_b0 = 0.0f;
-        m_coeffs[0].m_b1 = 0.0f;
-        m_coeffs[0].m_b2 = 0.0f;
-        m_coeffs[0].m_a0 = 0.0f;
-        m_coeffs[0].m_a1 = 0.0f;
-        m_coeffs[0].m_a2 = 0.0f;
-    }
-    else if (m_coeffs[0].m_freq > m_sample_rate * 0.5)
-    {
-        /* Above Nyquist frequency. Let everything through. */
-        m_coeffs[0].m_b0 = 1.0f;
-        m_coeffs[0].m_b1 = 0.0f;
-        m_coeffs[0].m_b2 = 0.0f;
-        m_coeffs[0].m_a0 = 0.0f;
-        m_coeffs[0].m_a1 = 0.0f;
-        m_coeffs[0].m_a2 = 0.0f;
-    }
-    else
-    {
-        float w = m_2pi_over_sample_rate * m_coeffs[0].m_freq;
-        float cosw = cos(w);
-        float sinw = sin(w);
-        float alpha = sinw / (2.0f * m_coeffs[0].m_q);
+        if (m_coeffs[b].m_freq <= 0)
+        {
+            /* Reject everything. */
+            m_coeffs[b].m_b0 = 0.0f;
+            m_coeffs[b].m_b1 = 0.0f;
+            m_coeffs[b].m_b2 = 0.0f;
+            m_coeffs[b].m_a0 = 0.0f;
+            m_coeffs[b].m_a1 = 0.0f;
+            m_coeffs[b].m_a2 = 0.0f;
+        }
+        else if (m_coeffs[b].m_freq > m_sample_rate * 0.5)
+        {
+            /* Above Nyquist frequency. Let everything through. */
+            m_coeffs[b].m_b0 = 1.0f;
+            m_coeffs[b].m_b1 = 0.0f;
+            m_coeffs[b].m_b2 = 0.0f;
+            m_coeffs[b].m_a0 = 0.0f;
+            m_coeffs[b].m_a1 = 0.0f;
+            m_coeffs[b].m_a2 = 0.0f;
+        }
+        else
+        {
+            float w = m_2pi_over_sample_rate * m_coeffs[b].m_freq;
+            float cosw = cos(w);
+            float sinw = sin(w);
+            float alpha = sinw / (2.0f * m_coeffs[b].m_q);
 
-        /* Low pass filter */
-        m_coeffs[0].m_b0 = (1.0f - cosw) / 2.0f;
-        m_coeffs[0].m_b1 = 1.0f - cosw;
-        m_coeffs[0].m_b2 = (1.0f - cosw) / 2.0f;
-        m_coeffs[0].m_a0 = 1.0f + alpha;
-        m_coeffs[0].m_a1 = -2.0f * cosw;
-        m_coeffs[0].m_a2 = 1.0f - alpha;
+            /* Low pass filter */
+            m_coeffs[b].m_b0 = (1.0f - cosw) / 2.0f;
+            m_coeffs[b].m_b1 = 1.0f - cosw;
+            m_coeffs[b].m_b2 = (1.0f - cosw) / 2.0f;
+            m_coeffs[b].m_a0 = 1.0f + alpha;
+            m_coeffs[b].m_a1 = -2.0f * cosw;
+            m_coeffs[b].m_a2 = 1.0f - alpha;
 
-        m_coeffs[0].m_b0 /= m_coeffs[0].m_a0;
-        m_coeffs[0].m_b1 /= m_coeffs[0].m_a0;
-        m_coeffs[0].m_b2 /= m_coeffs[0].m_a0;
-        m_coeffs[0].m_a1 /= m_coeffs[0].m_a0;
-        m_coeffs[0].m_a2 /= m_coeffs[0].m_a0;
+            m_coeffs[b].m_b0 /= m_coeffs[b].m_a0;
+            m_coeffs[b].m_b1 /= m_coeffs[b].m_a0;
+            m_coeffs[b].m_b2 /= m_coeffs[b].m_a0;
+            m_coeffs[b].m_a1 /= m_coeffs[b].m_a0;
+            m_coeffs[b].m_a2 /= m_coeffs[b].m_a0;
+        }
     }
 }
 
@@ -144,25 +164,34 @@ void EffectBiquadCascade::run(float **audio_in, float **audio_out, unsigned long
 {
     for (unsigned long i = 0; i < samples; i++)
     {
-        const int b = 0;
+        m_x0_0[0] = audio_in[0][i];
+        m_x1_0[0] = audio_in[1][i];
 
-        audio_out[0][i] = m_coeffs[0].m_b0 * audio_in[0][i] + m_coeffs[0].m_b1 * m_x0_1[b] + m_coeffs[0].m_b2 * m_x0_2[b]
-            - m_coeffs[0].m_a1 * m_x0_1[b+1] - m_coeffs[0].m_a2 * m_x0_2[b+1];
+        for (int b = 0; b < kNumBiquads; b++)
+        {
+            /* Left channel (0) */
+            m_x0_0[b+1] = m_coeffs[b].m_b0 * m_x0_0[b] + m_coeffs[b].m_b1 * m_x0_1[b] + m_coeffs[b].m_b2 * m_x0_2[b]
+                - m_coeffs[b].m_a1 * m_x0_1[b+1] - m_coeffs[b].m_a2 * m_x0_2[b+1];
 
-        m_x0_2[b+1] = m_x0_1[b+1];
-        m_x0_1[b+1] = audio_out[0][i];
+            m_x0_2[b] = m_x0_1[b];
+            m_x0_1[b] = m_x0_0[b];
 
-        m_x0_2[b] = m_x0_1[b];
-        m_x0_1[b] = audio_in[0][i];
+            /* Right channel (1) */
+            m_x1_0[b+1] = m_coeffs[b].m_b0 * m_x1_0[b] + m_coeffs[b].m_b1 * m_x1_1[b] + m_coeffs[b].m_b2 * m_x1_2[b]
+                - m_coeffs[b].m_a1 * m_x1_1[b+1] - m_coeffs[b].m_a2 * m_x1_2[b+1];
 
-        audio_out[1][i] = m_coeffs[0].m_b0 * audio_in[1][i] + m_coeffs[0].m_b1 * m_x1_1[b] + m_coeffs[0].m_b2 * m_x1_2[b]
-            - m_coeffs[0].m_a1 * m_x1_1[b+1] - m_coeffs[0].m_a2 * m_x1_2[b+1];
+            m_x1_2[b] = m_x1_1[b];
+            m_x1_1[b] = m_x1_0[b];
+        }
 
-        m_x1_2[b+1] = m_x1_1[b+1];
-        m_x1_1[b+1] = audio_out[1][i];
+        m_x0_2[kNumBiquads] = m_x0_1[kNumBiquads];
+        m_x0_1[kNumBiquads] = m_x0_0[kNumBiquads];
 
-        m_x1_2[b] = m_x1_1[b];
-        m_x1_1[b] = audio_in[1][i];
+        m_x1_2[kNumBiquads] = m_x1_1[kNumBiquads];
+        m_x1_1[kNumBiquads] = m_x1_0[kNumBiquads];
+
+        audio_out[0][i] = m_x0_0[kNumBiquads];
+        audio_out[1][i] = m_x1_0[kNumBiquads];
     }
 
 }

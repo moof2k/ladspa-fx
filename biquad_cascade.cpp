@@ -15,8 +15,10 @@
 
 
 enum {
-    kPortInFreq = 0,
-    kPortInQ,
+    kPortInFreq0 = 0,
+    kPortInQ0,
+    kPortInFreq1,
+    kPortInQ1,
     kPortInAudio0,
     kPortInAudio1,
     kPortOutAudio0,
@@ -33,8 +35,10 @@ public:
 
     EffectBiquadCascade m_effect;
 
-    LADSPA_Data * m_pfInFreq;
-    LADSPA_Data * m_pfInQ;
+    LADSPA_Data * m_pfInFreq0;
+    LADSPA_Data * m_pfInQ0;
+    LADSPA_Data * m_pfInFreq1;
+    LADSPA_Data * m_pfInQ1;
     LADSPA_Data * m_pfInAudio0;
     LADSPA_Data * m_pfInAudio1;
     LADSPA_Data * m_pfOutAudio0;
@@ -67,11 +71,17 @@ void connect_port(LADSPA_Handle instance, unsigned long port, LADSPA_Data * data
 
     switch (port)
     {
-        case kPortInFreq:
-            psFilter->m_pfInFreq = data_location;
+        case kPortInFreq0:
+            psFilter->m_pfInFreq0 = data_location;
             break;
-        case kPortInQ:
-            psFilter->m_pfInQ = data_location;
+        case kPortInQ0:
+            psFilter->m_pfInQ0 = data_location;
+            break;
+        case kPortInFreq1:
+            psFilter->m_pfInFreq1 = data_location;
+            break;
+        case kPortInQ1:
+            psFilter->m_pfInQ1 = data_location;
             break;
         case kPortInAudio0:
             psFilter->m_pfInAudio0 = data_location;
@@ -105,8 +115,10 @@ void run_filter(LADSPA_Handle instance, unsigned long sample_count)
         psFilter->m_pfOutAudio1
     };
 
-    psFilter->m_effect.set_freq(*psFilter->m_pfInFreq);
-    psFilter->m_effect.set_q(*psFilter->m_pfInQ);
+    psFilter->m_effect.set_freq(0, *psFilter->m_pfInFreq0);
+    psFilter->m_effect.set_q(0, *psFilter->m_pfInQ0);
+    psFilter->m_effect.set_freq(1, *psFilter->m_pfInFreq1);
+    psFilter->m_effect.set_q(1, *psFilter->m_pfInQ1);
 
     psFilter->m_effect.run(audio_in, audio_out, sample_count, 2);
 
@@ -170,43 +182,62 @@ extern "C" void _init()
         g_psLPFDescriptor->Copyright
           = strdup("None");
 
-        g_psLPFDescriptor->PortCount = 6;
+        g_psLPFDescriptor->PortCount = 8;
 
-        piPortDescriptors = (LADSPA_PortDescriptor *) calloc(6, sizeof(LADSPA_PortDescriptor));
+        piPortDescriptors = (LADSPA_PortDescriptor *) calloc(g_psLPFDescriptor->PortCount, sizeof(LADSPA_PortDescriptor));
         g_psLPFDescriptor->PortDescriptors = (const LADSPA_PortDescriptor *) piPortDescriptors;
-        piPortDescriptors[kPortInFreq] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
-        piPortDescriptors[kPortInQ] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
+        piPortDescriptors[kPortInFreq0] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
+        piPortDescriptors[kPortInQ0] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
+        piPortDescriptors[kPortInFreq1] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
+        piPortDescriptors[kPortInQ1] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
         piPortDescriptors[kPortInAudio0] = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
         piPortDescriptors[kPortInAudio1] = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
         piPortDescriptors[kPortOutAudio0] = LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO;
         piPortDescriptors[kPortOutAudio1] = LADSPA_PORT_OUTPUT | LADSPA_PORT_AUDIO;
 
-        pcPortNames = (char **) calloc(6, sizeof(char *));
+        pcPortNames = (char **) calloc(g_psLPFDescriptor->PortCount, sizeof(char *));
         g_psLPFDescriptor->PortNames = (const char **) pcPortNames;
-        pcPortNames[kPortInFreq] = strdup("Center Frequency (Hz)");
-        pcPortNames[kPortInQ] = strdup("Resonance (Q)");
+        pcPortNames[kPortInFreq0] = strdup("Center Frequency 0 (Hz)");
+        pcPortNames[kPortInQ0] = strdup("Resonance 0 (Q)");
+        pcPortNames[kPortInFreq1] = strdup("Center Frequency 1 (Hz)");
+        pcPortNames[kPortInQ1] = strdup("Resonance 1 (Q)");
         pcPortNames[kPortInAudio0] = strdup("Input (Left)");
         pcPortNames[kPortInAudio1] = strdup("Input (Right)");
         pcPortNames[kPortOutAudio0] = strdup("Output (Left)");
         pcPortNames[kPortOutAudio1] = strdup("Output (Right)");
 
-        psPortRangeHints = ((LADSPA_PortRangeHint *) calloc(6, sizeof(LADSPA_PortRangeHint)));
+        psPortRangeHints = ((LADSPA_PortRangeHint *) calloc(g_psLPFDescriptor->PortCount, sizeof(LADSPA_PortRangeHint)));
         g_psLPFDescriptor->PortRangeHints = (const LADSPA_PortRangeHint *) psPortRangeHints;
 
-        psPortRangeHints[kPortInFreq].HintDescriptor
+        psPortRangeHints[kPortInFreq0].HintDescriptor
             = (LADSPA_HINT_BOUNDED_BELOW 
             | LADSPA_HINT_BOUNDED_ABOVE
             | LADSPA_HINT_SAMPLE_RATE
             | LADSPA_HINT_LOGARITHMIC
             | LADSPA_HINT_DEFAULT_440);
-        psPortRangeHints[kPortInFreq].LowerBound = 0;
-        psPortRangeHints[kPortInFreq].UpperBound = 0.125; /* 1/8 the sample rate */
+        psPortRangeHints[kPortInFreq0].LowerBound = 0;
+        psPortRangeHints[kPortInFreq0].UpperBound = 0.125; /* 1/8 the sample rate */
 
-        psPortRangeHints[kPortInQ].HintDescriptor
+        psPortRangeHints[kPortInQ0].HintDescriptor
             = (LADSPA_HINT_BOUNDED_BELOW 
             | LADSPA_HINT_BOUNDED_ABOVE);
-        psPortRangeHints[kPortInQ].LowerBound = 0.1;
-        psPortRangeHints[kPortInQ].UpperBound = 10;
+        psPortRangeHints[kPortInQ0].LowerBound = 0.1;
+        psPortRangeHints[kPortInQ0].UpperBound = 10;
+
+        psPortRangeHints[kPortInFreq1].HintDescriptor
+            = (LADSPA_HINT_BOUNDED_BELOW 
+            | LADSPA_HINT_BOUNDED_ABOVE
+            | LADSPA_HINT_SAMPLE_RATE
+            | LADSPA_HINT_LOGARITHMIC
+            | LADSPA_HINT_DEFAULT_440);
+        psPortRangeHints[kPortInFreq1].LowerBound = 0;
+        psPortRangeHints[kPortInFreq1].UpperBound = 0.125; /* 1/8 the sample rate */
+
+        psPortRangeHints[kPortInQ1].HintDescriptor
+            = (LADSPA_HINT_BOUNDED_BELOW 
+            | LADSPA_HINT_BOUNDED_ABOVE);
+        psPortRangeHints[kPortInQ1].LowerBound = 0.1;
+        psPortRangeHints[kPortInQ1].UpperBound = 10;
 
         psPortRangeHints[kPortInAudio0].HintDescriptor = 0;
         psPortRangeHints[kPortInAudio1].HintDescriptor = 0;
