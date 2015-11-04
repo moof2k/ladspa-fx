@@ -160,11 +160,11 @@ void EffectBiquad::run(float **audio_in, float **audio_out, unsigned long sample
 
         audio_out[1][i] = m_b0 * audio_in[1][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
 
-        m_y0_2 = m_y0_1;
-        m_y0_1 = audio_out[1][i];
+        m_y1_2 = m_y0_1;
+        m_y1_1 = audio_out[1][i];
 
-        m_x0_2 = m_x0_1;
-        m_x0_1 = audio_in[1][i];
+        m_x1_2 = m_x0_1;
+        m_x1_1 = audio_in[1][i];
     }
 
 }
