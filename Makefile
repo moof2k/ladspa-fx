@@ -1,7 +1,8 @@
 
-CC=g++ -I. -Wall -Werror -O3 -fPIC -MMD
+CC=g++ -I. -Wall -Werror -fPIC -MMD -g
 
 PLUGINS=plugins/lpf.so plugins/biquad.so plugins/biquad_cascade.so
+TESTS=lpf_test
 
 %.o: %.cpp
 	cppcheck $<
@@ -10,7 +11,10 @@ PLUGINS=plugins/lpf.so plugins/biquad.so plugins/biquad_cascade.so
 plugins/%.so: %.o
 	ld -o $@ $< -shared
 
-all: $(PLUGINS)
+%_test: %_test.o
+	g++ -g -o $@ $<
+
+all: $(PLUGINS) $(TESTS)
 
 clean:
 	rm -rf *.o
@@ -18,3 +22,4 @@ clean:
 	rm -rf plugins/*.so
 
 -include $(PLUGINS:plugins/%.so=%.d)
+-include $(TESTS:%_test=%.d)

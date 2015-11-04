@@ -59,7 +59,7 @@ public:
     void set_freq(int biquad, float freq);
     void set_q(int biquad, float q);
 
-    void run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels);
+    void run(const float *audio_in[2], float *audio_out[2], unsigned long samples);
 
 private:
 
@@ -200,12 +200,14 @@ void EffectBiquadCascade::update_parameters()
     }
 }
 
-void EffectBiquadCascade::run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels)
+void EffectBiquadCascade::run(const float *audio_in[2], float *audio_out[2], unsigned long samples)
 {
+    const float *in[2] = { audio_in[0], audio_in[1] };
+
     for (unsigned long i = 0; i < samples; i++)
     {
-        m_x0_0[0] = audio_in[0][i];
-        m_x1_0[0] = audio_in[1][i];
+        m_x0_0[0] = in[0][i];
+        m_x1_0[0] = in[1][i];
 
         for (int b = 0; b < kNumBiquads; b++)
         {

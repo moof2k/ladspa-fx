@@ -115,7 +115,7 @@ void run_filter(LADSPA_Handle instance, unsigned long sample_count)
 {
     LPFEffectInstance *psFilter = (LPFEffectInstance *) instance;
 
-    float *audio_in[2] = {
+    const float *audio_in[2] = {
         psFilter->m_pfInAudio0,
         psFilter->m_pfInAudio1
     };
@@ -133,7 +133,7 @@ void run_filter(LADSPA_Handle instance, unsigned long sample_count)
     psFilter->m_effect.set_freq(1, *psFilter->m_pfInFreq1);
     psFilter->m_effect.set_q(1, *psFilter->m_pfInQ1);
 
-    psFilter->m_effect.run(audio_in, audio_out, sample_count, 2);
+    psFilter->m_effect.run(audio_in, audio_out, sample_count);
 
 }
 

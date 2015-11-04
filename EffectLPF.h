@@ -2,6 +2,8 @@
 #ifndef _H_EFFECT_LPF
 #define _H_EFFECT_LPF
 
+#include <math.h>
+
 #include "Effect.h"
 
 
@@ -27,7 +29,7 @@ public:
 
     void set_cutoff(float cutoff);
 
-    void run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels);
+    void run(const float *audio_in[2], float *audio_out[2], unsigned long samples);
 
 private:
 
@@ -75,16 +77,20 @@ void EffectLPF::set_cutoff(float cutoff)
     }
 }
 
-void EffectLPF::run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels)
+void EffectLPF::run(const float *audio_in[2], float *audio_out[2], unsigned long samples)
 {
-    for (unsigned long lSampleIndex = 0; lSampleIndex < samples; lSampleIndex++)
+    const float *in[2] = { audio_in[0], audio_in[1] };
+    float *out[2] = { audio_out[0], audio_out[1] };
+
+    for (unsigned long i = 0; i < samples; i++)
     {
-        *(audio_out[0]++)
+        *(out[0]++)
             = m_last_output0
-            = (m_amount_of_current * *(audio_in[0]++) + m_amount_of_last * m_last_output0);
-        *(audio_out[1]++)
+            = (m_amount_of_current * *(in[0]++) + m_amount_of_last * m_last_output0);
+            
+        *(out[1]++)
             = m_last_output1
-            = (m_amount_of_current * *(audio_in[1]++) + m_amount_of_last * m_last_output1);
+            = (m_amount_of_current * *(in[1]++) + m_amount_of_last * m_last_output1);
     }
 
 }

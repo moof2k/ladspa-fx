@@ -16,7 +16,7 @@ public:
 
     virtual void activate() = 0;
 
-    virtual void run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels) = 0;
+    virtual void run(const float *audio_in[2], float *audio_out[2], unsigned long samples) = 0;
 
 private:
 

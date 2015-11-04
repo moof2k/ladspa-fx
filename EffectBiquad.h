@@ -31,7 +31,7 @@ public:
     void set_cutoff(float cutoff);
     void set_q(float q);
 
-    void run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels);
+    void run(const float *audio_in[2], float *audio_out[2], unsigned long samples);
 
 private:
 
@@ -146,11 +146,13 @@ void EffectBiquad::update_parameters()
     }
 }
 
-void EffectBiquad::run(float **audio_in, float **audio_out, unsigned long samples, unsigned int channels)
+void EffectBiquad::run(const float *audio_in[2], float *audio_out[2], unsigned long samples)
 {
+    const float *in[2] = { audio_in[0], audio_in[1] };
+
     for (unsigned long i = 0; i < samples; i++)
     {
-        audio_out[0][i] = m_b0 * audio_in[0][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
+        audio_out[0][i] = m_b0 * in[0][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
 
         m_y0_2 = m_y0_1;
         m_y0_1 = audio_out[0][i];
@@ -158,7 +160,7 @@ void EffectBiquad::run(float **audio_in, float **audio_out, unsigned long sample
         m_x0_2 = m_x0_1;
         m_x0_1 = audio_in[0][i];
 
-        audio_out[1][i] = m_b0 * audio_in[1][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
+        audio_out[1][i] = m_b0 * in[1][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
 
         m_y1_2 = m_y0_1;
         m_y1_1 = audio_out[1][i];
