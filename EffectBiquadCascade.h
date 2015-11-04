@@ -29,6 +29,8 @@ public:
     float m_q;
 };
 
+const int kNumBiquads = 1;
+
 class EffectBiquadCascade : public Effect
 {
 public:
@@ -56,30 +58,23 @@ private:
     float m_sample_rate;
     float m_2pi_over_sample_rate;
 
-    float m_x0_1;
-    float m_x0_2;
-    float m_x1_1;
-    float m_x1_2;
+    float m_x0_1[kNumBiquads + 1];
+    float m_x0_2[kNumBiquads + 1];
+    float m_x1_1[kNumBiquads + 1];
+    float m_x1_2[kNumBiquads + 1];
 
-    float m_y0_1;
-    float m_y0_2;
-    float m_y1_1;
-    float m_y1_2;
-
-    BiquadCoeffs m_coeffs[1];
+    BiquadCoeffs m_coeffs[kNumBiquads];
 };
 
 void EffectBiquadCascade::activate()
 {
-    m_x0_1 = 0.0f;
-    m_x0_2 = 0.0f;
-    m_x1_1 = 0.0f;
-    m_x1_2 = 0.0f;
-
-    m_y0_1 = 0.0f;
-    m_y0_2 = 0.0f;
-    m_y1_1 = 0.0f;
-    m_y1_2 = 0.0f;
+    for (int i = 0; i < kNumBiquads + 1; i++)
+    {
+        m_x0_1[i] = 0.0f;
+        m_x0_2[i] = 0.0f;
+        m_x1_1[i] = 0.0f;
+        m_x1_2[i] = 0.0f;
+    }
 }
 
 void EffectBiquadCascade::set_freq(float freq)
@@ -149,23 +144,25 @@ void EffectBiquadCascade::run(float **audio_in, float **audio_out, unsigned long
 {
     for (unsigned long i = 0; i < samples; i++)
     {
-        audio_out[0][i] = m_coeffs[0].m_b0 * audio_in[0][i] + m_coeffs[0].m_b1 * m_x0_1 + m_coeffs[0].m_b2 * m_x0_2
-            - m_coeffs[0].m_a1 * m_y0_1 - m_coeffs[0].m_a2 * m_y0_2;
+        const int b = 0;
 
-        m_y0_2 = m_y0_1;
-        m_y0_1 = audio_out[0][i];
+        audio_out[0][i] = m_coeffs[0].m_b0 * audio_in[0][i] + m_coeffs[0].m_b1 * m_x0_1[b] + m_coeffs[0].m_b2 * m_x0_2[b]
+            - m_coeffs[0].m_a1 * m_x0_1[b+1] - m_coeffs[0].m_a2 * m_x0_2[b+1];
 
-        m_x0_2 = m_x0_1;
-        m_x0_1 = audio_in[0][i];
+        m_x0_2[b+1] = m_x0_1[b+1];
+        m_x0_1[b+1] = audio_out[0][i];
 
-        audio_out[1][i] = m_coeffs[0].m_b0 * audio_in[1][i] + m_coeffs[0].m_b1 * m_x0_1 + m_coeffs[0].m_b2 * m_x0_2
-            - m_coeffs[0].m_a1 * m_y0_1 - m_coeffs[0].m_a2 * m_y0_2;
+        m_x0_2[b] = m_x0_1[b];
+        m_x0_1[b] = audio_in[0][i];
 
-        m_y1_2 = m_y0_1;
-        m_y1_1 = audio_out[1][i];
+        audio_out[1][i] = m_coeffs[0].m_b0 * audio_in[1][i] + m_coeffs[0].m_b1 * m_x1_1[b] + m_coeffs[0].m_b2 * m_x1_2[b]
+            - m_coeffs[0].m_a1 * m_x1_1[b+1] - m_coeffs[0].m_a2 * m_x1_2[b+1];
 
-        m_x1_2 = m_x0_1;
-        m_x1_1 = audio_in[1][i];
+        m_x1_2[b+1] = m_x1_1[b+1];
+        m_x1_1[b+1] = audio_out[1][i];
+
+        m_x1_2[b] = m_x1_1[b];
+        m_x1_1[b] = audio_in[1][i];
     }
 
 }
