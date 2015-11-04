@@ -184,7 +184,7 @@ extern "C" void _init()
         pcPortNames = (char **) calloc(6, sizeof(char *));
         g_psLPFDescriptor->PortNames = (const char **) pcPortNames;
         pcPortNames[kPortInCutoff] = strdup("Cutoff Frequency (Hz)");
-        pcPortNames[kPortInQ] = strdup("Quality (Q)");
+        pcPortNames[kPortInQ] = strdup("Resonance (Q)");
         pcPortNames[kPortInAudio0] = strdup("Input (Left)");
         pcPortNames[kPortInAudio1] = strdup("Input (Right)");
         pcPortNames[kPortOutAudio0] = strdup("Output (Left)");

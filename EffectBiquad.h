@@ -122,9 +122,18 @@ void EffectBiquad::update_parameters()
         float sinw = sin(w);
         float alpha = sinw / (2.0f * m_q);
 
+        /* Low pass filter */
         m_b0 = (1.0f - cosw) / 2.0f;
         m_b1 = 1.0f - cosw;
         m_b2 = (1.0f - cosw) / 2.0f;
+        m_a0 = 1.0f + alpha;
+        m_a1 = -2.0f * cosw;
+        m_a2 = 1.0f - alpha;
+
+        /* High pass filter */
+        m_b0 = (1.0f + cosw) / 2.0f;
+        m_b1 = -(1.0f + cosw);
+        m_b2 = (1.0f + cosw) / 2.0f;
         m_a0 = 1.0f + alpha;
         m_a1 = -2.0f * cosw;
         m_a2 = 1.0f - alpha;
