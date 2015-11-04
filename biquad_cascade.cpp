@@ -15,8 +15,10 @@
 
 
 enum {
-    kPortInFreq0 = 0,
+    kPortInType0 = 0,
+    kPortInFreq0,
     kPortInQ0,
+    kPortInType1,
     kPortInFreq1,
     kPortInQ1,
     kPortInAudio0,
@@ -35,8 +37,10 @@ public:
 
     EffectBiquadCascade m_effect;
 
+    LADSPA_Data * m_pfInType0;
     LADSPA_Data * m_pfInFreq0;
     LADSPA_Data * m_pfInQ0;
+    LADSPA_Data * m_pfInType1;
     LADSPA_Data * m_pfInFreq1;
     LADSPA_Data * m_pfInQ1;
     LADSPA_Data * m_pfInAudio0;
@@ -71,11 +75,17 @@ void connect_port(LADSPA_Handle instance, unsigned long port, LADSPA_Data * data
 
     switch (port)
     {
+        case kPortInType0:
+            psFilter->m_pfInType0 = data_location;
+            break;
         case kPortInFreq0:
             psFilter->m_pfInFreq0 = data_location;
             break;
         case kPortInQ0:
             psFilter->m_pfInQ0 = data_location;
+            break;
+        case kPortInType1:
+            psFilter->m_pfInType1 = data_location;
             break;
         case kPortInFreq1:
             psFilter->m_pfInFreq1 = data_location;
@@ -115,8 +125,11 @@ void run_filter(LADSPA_Handle instance, unsigned long sample_count)
         psFilter->m_pfOutAudio1
     };
 
+    psFilter->m_effect.set_type(0, *psFilter->m_pfInType0);
     psFilter->m_effect.set_freq(0, *psFilter->m_pfInFreq0);
     psFilter->m_effect.set_q(0, *psFilter->m_pfInQ0);
+
+    psFilter->m_effect.set_type(1, *psFilter->m_pfInType1);
     psFilter->m_effect.set_freq(1, *psFilter->m_pfInFreq1);
     psFilter->m_effect.set_q(1, *psFilter->m_pfInQ1);
 
@@ -182,12 +195,14 @@ extern "C" void _init()
         g_psLPFDescriptor->Copyright
           = strdup("None");
 
-        g_psLPFDescriptor->PortCount = 8;
+        g_psLPFDescriptor->PortCount = 10;
 
         piPortDescriptors = (LADSPA_PortDescriptor *) calloc(g_psLPFDescriptor->PortCount, sizeof(LADSPA_PortDescriptor));
         g_psLPFDescriptor->PortDescriptors = (const LADSPA_PortDescriptor *) piPortDescriptors;
+        piPortDescriptors[kPortInType0] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
         piPortDescriptors[kPortInFreq0] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
         piPortDescriptors[kPortInQ0] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
+        piPortDescriptors[kPortInType1] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
         piPortDescriptors[kPortInFreq1] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
         piPortDescriptors[kPortInQ1] = LADSPA_PORT_INPUT | LADSPA_PORT_CONTROL;
         piPortDescriptors[kPortInAudio0] = LADSPA_PORT_INPUT | LADSPA_PORT_AUDIO;
@@ -197,8 +212,10 @@ extern "C" void _init()
 
         pcPortNames = (char **) calloc(g_psLPFDescriptor->PortCount, sizeof(char *));
         g_psLPFDescriptor->PortNames = (const char **) pcPortNames;
+        pcPortNames[kPortInType0] = strdup("Type 0");
         pcPortNames[kPortInFreq0] = strdup("Center Frequency 0 (Hz)");
         pcPortNames[kPortInQ0] = strdup("Resonance 0 (Q)");
+        pcPortNames[kPortInType1] = strdup("Type 1");
         pcPortNames[kPortInFreq1] = strdup("Center Frequency 1 (Hz)");
         pcPortNames[kPortInQ1] = strdup("Resonance 1 (Q)");
         pcPortNames[kPortInAudio0] = strdup("Input (Left)");
@@ -208,6 +225,13 @@ extern "C" void _init()
 
         psPortRangeHints = ((LADSPA_PortRangeHint *) calloc(g_psLPFDescriptor->PortCount, sizeof(LADSPA_PortRangeHint)));
         g_psLPFDescriptor->PortRangeHints = (const LADSPA_PortRangeHint *) psPortRangeHints;
+
+        psPortRangeHints[kPortInType0].HintDescriptor
+            = (LADSPA_HINT_BOUNDED_BELOW 
+            | LADSPA_HINT_BOUNDED_ABOVE
+            | LADSPA_HINT_INTEGER);
+        psPortRangeHints[kPortInType0].LowerBound = -0.1;
+        psPortRangeHints[kPortInType0].UpperBound = 1.1;
 
         psPortRangeHints[kPortInFreq0].HintDescriptor
             = (LADSPA_HINT_BOUNDED_BELOW 
@@ -223,6 +247,13 @@ extern "C" void _init()
             | LADSPA_HINT_BOUNDED_ABOVE);
         psPortRangeHints[kPortInQ0].LowerBound = 0.1;
         psPortRangeHints[kPortInQ0].UpperBound = 10;
+
+        psPortRangeHints[kPortInType1].HintDescriptor
+            = (LADSPA_HINT_BOUNDED_BELOW 
+            | LADSPA_HINT_BOUNDED_ABOVE
+            | LADSPA_HINT_INTEGER);
+        psPortRangeHints[kPortInType1].LowerBound = -0.1;
+        psPortRangeHints[kPortInType1].UpperBound = 1.1;
 
         psPortRangeHints[kPortInFreq1].HintDescriptor
             = (LADSPA_HINT_BOUNDED_BELOW 
