@@ -2,7 +2,7 @@
 CC=g++ -I. -Wall -Werror -fPIC -MMD -g
 
 PLUGINS=plugins/lpf.so plugins/biquad.so plugins/biquad_cascade.so
-TESTS=lpf_test
+TESTS=lpf_test biquad_test
 
 %.o: %.cpp
 	cppcheck $<
@@ -22,4 +22,4 @@ clean:
 	rm -rf plugins/*.so
 
 -include $(PLUGINS:plugins/%.so=%.d)
--include $(TESTS:%_test=%.d)
+-include $(TESTS:%_test=%_test.d)

@@ -2,8 +2,9 @@
 #ifndef _H_EFFECT_BIQUAD
 #define _H_EFFECT_BIQUAD
 
-#include "Effect.h"
+#include <math.h>
 
+#include "Effect.h"
 
 class EffectBiquad : public Effect
 {
@@ -130,14 +131,6 @@ void EffectBiquad::update_parameters()
         m_a1 = -2.0f * cosw;
         m_a2 = 1.0f - alpha;
 
-        /* High pass filter */
-        m_b0 = (1.0f + cosw) / 2.0f;
-        m_b1 = -(1.0f + cosw);
-        m_b2 = (1.0f + cosw) / 2.0f;
-        m_a0 = 1.0f + alpha;
-        m_a1 = -2.0f * cosw;
-        m_a2 = 1.0f - alpha;
-
         m_b0 /= m_a0;
         m_b1 /= m_a0;
         m_b2 /= m_a0;
@@ -149,10 +142,11 @@ void EffectBiquad::update_parameters()
 void EffectBiquad::run(const float *audio_in[2], float *audio_out[2], unsigned long samples)
 {
     const float *in[2] = { audio_in[0], audio_in[1] };
+    float *out[2] = { audio_out[0], audio_out[1] };
 
     for (unsigned long i = 0; i < samples; i++)
     {
-        audio_out[0][i] = m_b0 * in[0][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
+        out[0][i] = m_b0 * in[0][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
 
         m_y0_2 = m_y0_1;
         m_y0_1 = audio_out[0][i];
@@ -160,7 +154,7 @@ void EffectBiquad::run(const float *audio_in[2], float *audio_out[2], unsigned l
         m_x0_2 = m_x0_1;
         m_x0_1 = audio_in[0][i];
 
-        audio_out[1][i] = m_b0 * in[1][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
+        out[1][i] = m_b0 * in[1][i] + m_b1 * m_x0_1 + m_b2 * m_x0_2 - m_a1 * m_y0_1 - m_a2 * m_y0_2;
 
         m_y1_2 = m_y0_1;
         m_y1_1 = audio_out[1][i];
