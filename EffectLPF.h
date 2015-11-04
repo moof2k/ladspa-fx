@@ -1,6 +1,6 @@
 
-#ifndef _H_EFFECTLPF
-#define _H_EFFECTLPF
+#ifndef _H_EFFECT_LPF
+#define _H_EFFECT_LPF
 
 #include "Effect.h"
 
@@ -90,4 +90,4 @@ void EffectLPF::run(float **audio_in, float **audio_out, unsigned long samples, 
 }
 
 
-#endif // _H_EFFECTLPF
+#endif // _H_EFFECT_LPF
