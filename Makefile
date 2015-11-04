@@ -1,7 +1,7 @@
 
 CC=g++ -I. -Wall -Werror -O3 -fPIC -MMD
 
-PLUGINS=plugins/lpf.so plugins/biquad.so
+PLUGINS=plugins/lpf.so plugins/biquad.so plugins/biquad_cascade.so
 
 %.o: %.cpp
 	cppcheck $<
