@@ -18,16 +18,19 @@ void sine(float **audio_out, float freq, unsigned long samples, int sample_rate)
 
 int main(int argc, char **argv)
 {
-    assert(argc == 4);
+    assert(argc == 5);
+
+    int t0 = 0;
+    sscanf(argv[1], "%d", &t0);
 
     float f0 = 1;
-    sscanf(argv[1], "%f", &f0);
+    sscanf(argv[2], "%f", &f0);
 
     float q = 1;
-    sscanf(argv[2], "%f", &q);
+    sscanf(argv[3], "%f", &q);
 
     float freq = 1;
-    sscanf(argv[3], "%f", &freq);
+    sscanf(argv[4], "%f", &freq);
 
     const int kSampleRate = 48000;
     const unsigned long kNumSamples = 4096;
@@ -43,12 +46,12 @@ int main(int argc, char **argv)
     float *audio_out[2] = { audio_out0, audio_out1 };
 
     EffectBiquadCascade effect(kSampleRate);
-    effect.set_type(0, kBiquadTypeLowPassFilter);
+    effect.set_type(0, t0);
     effect.set_freq(0, f0);
     effect.set_q(0, q);
     effect.set_type(1, kBiquadTypeHighPassFilter);
-    effect.set_freq(1, f0 * 2);
-    effect.set_q(0, q);
+    effect.set_freq(1, f0);
+    effect.set_q(1, q);
     effect.activate();
     effect.run((const float**) audio_in, audio_out, kNumSamples);
 

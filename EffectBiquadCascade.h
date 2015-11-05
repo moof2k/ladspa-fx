@@ -168,6 +168,8 @@ void EffectBiquadCascade::update_parameters()
         }
         else
         {
+            /* http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt */
+            
             float w = m_2pi_over_sample_rate * m_coeffs[b].m_freq;
             float cosw = cos(w);
             float sinw = sin(w);
@@ -214,14 +216,14 @@ void EffectBiquadCascade::run(const float *audio_in[2], float *audio_out[2], uns
         for (int b = 0; b < kNumBiquads; b++)
         {
             /* Left channel (0) */
-            m_x0_0[b+1] = m_coeffs[b].m_b0 * in[0][i] + m_coeffs[b].m_b1 * m_x0_1[b] + m_coeffs[b].m_b2 * m_x0_2[b]
+            m_x0_0[b+1] = m_coeffs[b].m_b0 * m_x0_0[b] + m_coeffs[b].m_b1 * m_x0_1[b] + m_coeffs[b].m_b2 * m_x0_2[b]
                 - m_coeffs[b].m_a1 * m_x0_1[b+1] - m_coeffs[b].m_a2 * m_x0_2[b+1];
 
             m_x0_2[b] = m_x0_1[b];
             m_x0_1[b] = m_x0_0[b];
 
             /* Right channel (1) */
-            m_x1_0[b+1] = m_coeffs[b].m_b0 * in[1][i] + m_coeffs[b].m_b1 * m_x1_1[b] + m_coeffs[b].m_b2 * m_x1_2[b]
+            m_x1_0[b+1] = m_coeffs[b].m_b0 * m_x1_0[b] + m_coeffs[b].m_b1 * m_x1_1[b] + m_coeffs[b].m_b2 * m_x1_2[b]
                 - m_coeffs[b].m_a1 * m_x1_1[b+1] - m_coeffs[b].m_a2 * m_x1_2[b+1];
 
             m_x1_2[b] = m_x1_1[b];
