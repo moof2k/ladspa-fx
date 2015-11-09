@@ -8,7 +8,8 @@
 
 enum
 {
-    kBiquadTypeLowPassFilter = 0,
+    kBiquadTypePassthru = 0,
+    kBiquadTypeLowPassFilter,
     kBiquadTypeHighPassFilter,
     kNumBiquadTypes
 };
@@ -175,25 +176,34 @@ void EffectBiquadCascade::update_parameters()
             float sinw = sin(w);
             float alpha = sinw / (2.0f * m_coeffs[b].m_q);
 
-            if (m_coeffs[b].m_type == kBiquadTypeLowPassFilter)
+            switch (m_coeffs[b].m_type)
             {
-                m_coeffs[b].m_b0 = (1.0f - cosw) / 2.0f;
-                m_coeffs[b].m_b1 = 1.0f - cosw;
-                m_coeffs[b].m_b2 = (1.0f - cosw) / 2.0f;
-                m_coeffs[b].m_a0 = 1.0f + alpha;
-                m_coeffs[b].m_a1 = -2.0f * cosw;
-                m_coeffs[b].m_a2 = 1.0f - alpha;
+                case kBiquadTypeLowPassFilter:
+                    m_coeffs[b].m_b0 = (1.0f - cosw) / 2.0f;
+                    m_coeffs[b].m_b1 = 1.0f - cosw;
+                    m_coeffs[b].m_b2 = (1.0f - cosw) / 2.0f;
+                    m_coeffs[b].m_a0 = 1.0f + alpha;
+                    m_coeffs[b].m_a1 = -2.0f * cosw;
+                    m_coeffs[b].m_a2 = 1.0f - alpha;
+                    break;
+                case kBiquadTypeHighPassFilter:
+                    m_coeffs[b].m_b0 = (1.0f - cosw) / 2.0f;
+                    m_coeffs[b].m_b1 = -(1.0f - cosw);
+                    m_coeffs[b].m_b2 = (1.0f - cosw) / 2.0f;
+                    m_coeffs[b].m_a0 = 1.0f + alpha;
+                    m_coeffs[b].m_a1 = -2.0f * cosw;
+                    m_coeffs[b].m_a2 = 1.0f - alpha;
+                    break;
+                case kBiquadTypePassthru:
+                default:
+                    m_coeffs[b].m_b0 = 1.0f;
+                    m_coeffs[b].m_b1 = 0.0f;
+                    m_coeffs[b].m_b2 = 0.0f;
+                    m_coeffs[b].m_a0 = 1.0f;
+                    m_coeffs[b].m_a1 = 0.0f;
+                    m_coeffs[b].m_a2 = 0.0f;
+                    break;
             }
-            else
-            {
-                m_coeffs[b].m_b0 = (1.0f - cosw) / 2.0f;
-                m_coeffs[b].m_b1 = -(1.0f - cosw);
-                m_coeffs[b].m_b2 = (1.0f - cosw) / 2.0f;
-                m_coeffs[b].m_a0 = 1.0f + alpha;
-                m_coeffs[b].m_a1 = -2.0f * cosw;
-                m_coeffs[b].m_a2 = 1.0f - alpha;
-            }
-            
 
             m_coeffs[b].m_b0 /= m_coeffs[b].m_a0;
             m_coeffs[b].m_b1 /= m_coeffs[b].m_a0;
